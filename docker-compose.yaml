@@ -1,0 +1,227 @@
+version: "3.7"
+
+services:
+  nginx-proxy:
+    container_name: nginx-proxy
+    image: jwilder/nginx-proxy
+    restart: unless-stopped
+    ports:
+      - 80:80/tcp
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.15
+  
+  portainer:
+    container_name: portainer
+    image: portainer/portainer
+    restart: unless-stopped
+    ports:
+      - 9000:9000/tcp
+    environment: 
+      VIRTUAL_HOST: portainer.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.2
+  
+  organizr:
+    container_name: organizr
+    image: lsiocommunity/organizr:latest
+    restart: unless-stopped
+    ports:
+      - 8081:80/tcp
+    environment: 
+      VIRTUAL_HOST: organizr.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes: 
+      - ${DOCKER_CONFIGS}/organizr:/config
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.3
+
+  organizrv2:
+    container_name: organizrv2
+    image: organizrtools/organizr-v2
+    restart: unless-stopped
+    ports:
+      - 9090:80/tcp
+    environment: 
+      VIRTUAL_HOST: organizrv2.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes: 
+      - ${DOCKER_CONFIGS}/organizr-v2:/config
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.10
+  
+  sonarr:
+    container_name: sonarr
+    image: linuxserver/sonarr:latest
+    restart: unless-stopped
+    ports:
+      - 8989:8989/tcp
+    environment: 
+      VIRTUAL_HOST: sonarr.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${DOCKER_CONFIGS}/sonarr:/config
+      - ${DOWNLOAD_DIR}:/downloads
+      - ${TV_LIB}:/tv
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.4
+
+  radarr:
+    container_name: radarr
+    image: linuxserver/radarr:latest
+    restart: unless-stopped
+    ports: 
+      - 7878:7878/tcp
+    environment: 
+      VIRTUAL_HOST: radarr.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${DOCKER_CONFIGS}/radarr:/config
+      - ${DOWNLOAD_DIR}:/downloads
+      - ${MOVIE_LIB}:/movies
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.5
+
+  jackett:
+    container_name: jackett
+    image: linuxserver/jackett:latest
+    restart: unless-stopped
+    ports: 
+      - 9117:9117/tcp
+    environment:
+      VIRTUAL_HOST: jackett.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${DOCKER_CONFIGS}/jackett:/config
+      - ${DOWNLOAD_DIR}:/downloads
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.6
+
+  ombi:
+    container_name: ombi
+    image: linuxserver/ombi:latest
+    restart: unless-stopped
+    ports:
+      - 3579:3579/tcp
+    environment: 
+      VIRTUAL_HOST: ombi.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${DOCKER_CONFIGS}/ombi:/config
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.7
+  
+  qbittorrent:
+    container_name: qbittorrent
+    image: markusmcnugen/qbittorrentvpn:latest
+    restart: unless-stopped
+    ports:
+      - 8080:8080/tcp
+      - 8999:8999
+      - 8999:8999/udp
+    environment: 
+      VIRTUAL_HOST: qbittorrent.${DOMAIN}
+      VIRTUAL_PORT: "8080"
+      VPN_USERNAME: ${VPN_USERNAME}
+      VPN_PASSWORD: ${VPN_PASSWORD}
+      LAN_NETWORK: ${LAN_NETWORK}
+      NAME_SERVERS: ${NAME_SERVERS}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${DOCKER_CONFIGS}/qbittorrent:/config
+      - ${DOWNLOAD_DIR}:/downloads
+    privileged: true
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.8
+
+  tautulli:
+    container_name: tautulli
+    image: linuxserver/tautulli:latest
+    restart: unless-stopped
+    ports:
+      - 8181:8181/tcp
+    environment: 
+      VIRTUAL_HOST: tautulli.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${DOCKER_CONFIGS}/tautulli:/config
+      - ${DOCKER_CONFIGS}/plex/Library/Application Support/Plex Media Server/Logs:/logs
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.9
+
+  nzbget:
+    container_name: nzbget
+    image: linuxserver/nzbget
+    restart: unless-stopped
+    ports:
+      - 6789:6789
+    environment:
+      VIRTUAL_HOST: nzbget.${DOMAIN}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${DOCKER_CONFIGS}/nzbget:/config
+      - ${DOWNLOAD_DIR}:/downloads
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.11
+
+  plex:
+    image: plexinc/pms-docker:plexpass
+    container_name: plex
+    volumes:
+      - ${DOCKER_CONFIGS}/plex:/config
+      - ${TRANSCODE_DIR}:/transcode
+      - ${LIB_DIR}:/data
+    restart: unless-stopped
+    environment: 
+      PUID: ${PUID}
+      PGID: ${PGID}
+      VIRTUAL_HOST: plex.${DOMAIN}
+      PLEX_CLAIM: ${PLEX_CLAIM}
+      TZ: ${TZ}
+    privileged: true
+    network_mode: host
+    devices:
+      - /dev/dri:/dev/dri
+
+
+networks:
+  plex_stack:
+    driver: bridge
+    ipam:
+     config:
+      - subnet: 10.0.0.0/24
