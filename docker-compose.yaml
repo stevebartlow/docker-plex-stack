@@ -7,70 +7,56 @@ services:
     restart: unless-stopped
     ports:
       - 80:80/tcp
+      - 443:443/tcp
     volumes:
-      - /var/run/docker.sock:/tmp/docker.sock
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /home/plex/certs:/etc/nginx/certs
     networks:
       plex_stack:
         ipv4_address: 10.0.0.15
-  
-  portainer:
-    container_name: portainer
-    image: portainer/portainer
-    restart: unless-stopped
-    ports:
-      - 9000:9000/tcp
-    environment: 
-      VIRTUAL_HOST: portainer.${DOMAIN}
-      PUID: ${PUID}
-      PGID: ${PGID}
-      TZ: ${TZ}
+
+  grocy:
+    image: lscr.io/linuxserver/grocy
+    container_name: grocy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - VIRTUAL_HOST=grocy.${DOMAIN}
+      - VIRTUAL_PORT=80
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_CONFIGS}/grocy:/config
+    restart: unless-stopped
     networks:
       plex_stack:
-        ipv4_address: 10.0.0.2
-  
+        ipv4_address: 10.0.0.24
+
   organizr:
     container_name: organizr
-    image: lsiocommunity/organizr:latest
-    restart: unless-stopped
-    ports:
-      - 8081:80/tcp
-    environment: 
-      VIRTUAL_HOST: organizr.${DOMAIN}
-      PUID: ${PUID}
-      PGID: ${PGID}
-      TZ: ${TZ}
-    volumes: 
-      - ${DOCKER_CONFIGS}/organizr:/config
-    networks:
-      plex_stack:
-        ipv4_address: 10.0.0.3
-
-  organizrv2:
-    container_name: organizrv2
-    image: organizrtools/organizr-v2:plex
+    image: organizr/organizr
     restart: unless-stopped
     ports:
       - 9090:80/tcp
-    environment: 
-      VIRTUAL_HOST: organizrv2.${DOMAIN}
-      PUID: ${PUID}
-      PGID: ${PGID}
-      TZ: ${TZ}
-    volumes: 
+    environment:
+      - fpm=true
+      - branch=v2-master
+      - VIRTUAL_HOST=organizr.${DOMAIN}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
       - ${DOCKER_CONFIGS}/organizr-v2:/config
     networks:
       plex_stack:
         ipv4_address: 10.0.0.10
-  
+
   sonarr:
     container_name: sonarr
-    image: linuxserver/sonarr:latest
+    image: lscr.io/linuxserver/sonarr:latest
     restart: unless-stopped
     ports:
       - 8989:8989/tcp
-    environment: 
+    environment:
       VIRTUAL_HOST: sonarr.${DOMAIN}
       PUID: ${PUID}
       PGID: ${PGID}
@@ -85,11 +71,11 @@ services:
 
   radarr:
     container_name: radarr
-    image: linuxserver/radarr:latest
+    image: lscr.io/linuxserver/radarr:latest
     restart: unless-stopped
-    ports: 
+    ports:
       - 7878:7878/tcp
-    environment: 
+    environment:
       VIRTUAL_HOST: radarr.${DOMAIN}
       PUID: ${PUID}
       PGID: ${PGID}
@@ -102,11 +88,30 @@ services:
       plex_stack:
         ipv4_address: 10.0.0.5
 
+  lidarr:
+    image: lscr.io/linuxserver/lidarr
+    container_name: lidarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=#{TZ}
+      - VIRTUAL_HOST=lidarr.${DOMAIN}
+    volumes:
+      - ${DOCKER_CONFIGS}/lidarr:/config
+      - ${MUSIC_LIB}:/music #optional
+      - ${DOWNLOAD_DIR}:/downloads #optional
+    ports:
+      - 8686:8686
+    restart: unless-stopped
+    networks:
+      plex_stack:
+        ipv4_address: 10.0.0.14
+
   jackett:
     container_name: jackett
-    image: linuxserver/jackett:latest
+    image: lscr.io/linuxserver/jackett:latest
     restart: unless-stopped
-    ports: 
+    ports:
       - 9117:9117/tcp
     environment:
       VIRTUAL_HOST: jackett.${DOMAIN}
@@ -122,11 +127,11 @@ services:
 
   ombi:
     container_name: ombi
-    image: linuxserver/ombi:latest
+    image: lscr.io/linuxserver/ombi:latest
     restart: unless-stopped
     ports:
       - 3579:3579/tcp
-    environment: 
+    environment:
       VIRTUAL_HOST: ombi.${DOMAIN}
       PUID: ${PUID}
       PGID: ${PGID}
@@ -136,7 +141,7 @@ services:
     networks:
       plex_stack:
         ipv4_address: 10.0.0.7
-  
+
   qbittorrent:
     container_name: qbittorrent
     image: markusmcnugen/qbittorrentvpn:latest
@@ -145,16 +150,21 @@ services:
       - 8080:8080/tcp
       - 8999:8999
       - 8999:8999/udp
-    environment: 
+    environment:
       VIRTUAL_HOST: qbittorrent.${DOMAIN}
       VIRTUAL_PORT: "8080"
       VPN_USERNAME: ${VPN_USERNAME}
       VPN_PASSWORD: ${VPN_PASSWORD}
+      VPN_ENABLED: "yes"
       LAN_NETWORK: ${LAN_NETWORK}
       NAME_SERVERS: ${NAME_SERVERS}
       PUID: ${PUID}
       PGID: ${PGID}
+      UMASK: ${PGID}
       TZ: ${TZ}
+      WEBUI_PORT_ENV: "8080"
+      INCOMING_PORT_ENV: "8999"
+      NAME_SERVERS: "1.1.1.1,1.1.0.0"
     volumes:
       - ${DOCKER_CONFIGS}/qbittorrent:/config
       - ${DOWNLOAD_DIR}:/downloads
@@ -165,11 +175,11 @@ services:
 
   tautulli:
     container_name: tautulli
-    image: linuxserver/tautulli:latest
+    image: lscr.io/linuxserver/tautulli:latest
     restart: unless-stopped
     ports:
       - 8181:8181/tcp
-    environment: 
+    environment:
       VIRTUAL_HOST: tautulli.${DOMAIN}
       PUID: ${PUID}
       PGID: ${PGID}
@@ -181,23 +191,6 @@ services:
       plex_stack:
         ipv4_address: 10.0.0.9
 
-  nzbget:
-    container_name: nzbget
-    image: linuxserver/nzbget
-    restart: unless-stopped
-    ports:
-      - 6789:6789
-    environment:
-      VIRTUAL_HOST: nzbget.${DOMAIN}
-      PUID: ${PUID}
-      PGID: ${PGID}
-      TZ: ${TZ}
-    volumes:
-      - ${DOCKER_CONFIGS}/nzbget:/config
-      - ${DOWNLOAD_DIR}:/downloads
-    networks:
-      plex_stack:
-        ipv4_address: 10.0.0.11
 
   plex:
     image: plexinc/pms-docker:plexpass
@@ -205,9 +198,13 @@ services:
     volumes:
       - ${DOCKER_CONFIGS}/plex:/config
       - ${TRANSCODE_DIR}:/transcode
-      - ${LIB_DIR}:/data
+      - ${MOVIE_LIB}:/data/movies
+      - ${TV_LIB}:/data/tv
+      - ${MUSIC_LIB}:/data/music
+      - ${LIB_DIR}/prerolls:/data/prerolls
+        #      - ${LIB_DIR}:/data
     restart: unless-stopped
-    environment: 
+    environment:
       PUID: ${PUID}
       PGID: ${PGID}
       VIRTUAL_HOST: plex.${DOMAIN}
@@ -217,7 +214,6 @@ services:
     network_mode: host
     devices:
       - /dev/dri:/dev/dri
-
 
 networks:
   plex_stack:
