@@ -215,6 +215,50 @@ services:
     devices:
       - /dev/dri:/dev/dri
 
+  expressvpn:
+    container_name: expressvpn
+    image: polkaned/expressvpn
+    environment:
+      - ACTIVATION_CODE=${VPN_ACTIVATIONCODE}
+      - SERVER=${VPN_SERVER}
+      - PREFERRED_PROTOCOL=${VPN_PROTOCOL}
+      - LIGHTWAY_CIPHER=${VPN_CIPHER}
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - 8081:8081
+      - 6881:6881
+      - 6881:6881/udp
+    
+  qbittorrent-expressvpn:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      VIRTUAL_HOST: qbittorrent-expressvpn.${DOMAIN}
+      TZ: ${TZ}
+      WEBUI_PORT: 8081
+    volumes:
+      - ${DOCKER_CONFIGS}/qbittorrent:/config
+      - ${DOWNLOAD_DIR}:/downloads
+    ports:
+      - 8081:8081
+      - 6881:6881
+      - 6881:6881/udp
+    network_mode: service:expressvpn
+    depends_on:
+      - expressvpn
+    restart: unless-stopped
+
+
 networks:
   plex_stack:
     driver: bridge
